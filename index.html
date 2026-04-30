@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Walkie-Talkie FX Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #111827; color: #f3f4f6; overscroll-behavior-y: none; }
+        .glass-panel { background: rgba(31, 41, 55, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(75, 85, 99, 0.4); }
+        .effect-btn.active { background-color: #3b82f6; color: white; border-color: #60a5fa; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        canvas { width: 100%; height: 80px; border-radius: 0.5rem; background-color: #030712; border: 1px solid #374151; }
+        
+        /* Custom Select Styling */
+        select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <!-- Header -->
+    <header class="p-4 glass-panel flex justify-between items-center z-10 shadow-lg">
+        <h1 class="text-xl font-bold text-blue-400 flex items-center gap-2">
+            <i class="fa-solid fa-satellite-dish"></i> Walkie-Talkie FX
+        </h1>
+        <div id="installBtnContainer" class="hidden">
+            <button id="installBtn" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold transition-colors shadow-lg">
+                <i class="fa-solid fa-download mr-1"></i> Instalar App
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
+        
+        <!-- Warning -->
+        <div class="bg-yellow-900/50 border border-yellow-600 text-yellow-200 p-3 rounded-lg text-sm flex items-start gap-3 shadow-md">
+            <i class="fa-solid fa-triangle-exclamation mt-1"></i>
+            <p><strong>Aviso:</strong> Usa auriculares para evitar acoples sonoros (pitidos fuertes) si activas el micrófono y el altavoz a la vez.</p>
+        </div>
+
+        <!-- Devices Selection -->
+        <section class="glass-panel p-4 rounded-xl space-y-4">
+            <h2 class="text-lg font-semibold border-b border-gray-600 pb-2"><i class="fa-solid fa-sliders mr-2"></i> Configuración de I/O</h2>
+            
+            <div class="space-y-2">
+                <label class="block text-sm text-gray-400">Entrada de Audio (Micrófono)</label>
+                <div class="relative">
+                    <select id="inputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"></select>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm text-gray-400">Salida de Audio (Altavoz/Auriculares)</label>
+                <div class="relative">
+                    <select id="outputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"></select>
+                </div>
+                <p id="outputWarning" class="text-xs text-red-400 hidden">Tu navegador no soporta selección de salida (usará el predeterminado del sistema).</p>
+            </div>
+        </section>
+
+        <!-- Visualizer -->
+        <section class="glass-panel p-4 rounded-xl flex flex-col items-center">
+            <canvas id="visualizer"></canvas>
+            <div class="flex justify-between w-full mt-2 text-xs text-gray-500">
+                <span>Estado: <span id="statusText" class="text-red-400 font-bold">Apagado</span></span>
+                <span id="volumeIndicator">Vol: 0%</span>
+            </div>
+        </section>
+
+        <!-- Effects Grid -->
+        <section class="glass-panel p-4 rounded-xl">
+            <h2 class="text-lg font-semibold border-b border-gray-600 pb-2 mb-4"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Efectos de Voz</h2>
+            <div class="grid grid-cols-2 gap-3" id="effectsContainer">
+                <button class="effect-btn active bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all" data-effect="none">
+                    <i class="fa-solid fa-microphone text-xl"></i>
+                    <span class="text-sm font-medium">Normal</span>
+                </button>
+                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all" data-effect="walkietalkie">
+                    <i class="fa-solid fa-walkie-talkie text-xl"></i>
+                    <span class="text-sm font-medium">Walkie-Talkie</span>
+                </button>
+                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all" data-effect="robot">
+                    <i class="fa-solid fa-robot text-xl"></i>
+                    <span class="text-sm font-medium">Robot</span>
+                </button>
+                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all" data-effect="alien">
+                    <i class="fa-brands fa-space-awesome text-xl"></i>
+                    <span class="text-sm font-medium">Extraterrestre</span>
+                </button>
+                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all" data-effect="megaphone">
+                    <i class="fa-solid fa-bullhorn text-xl"></i>
+                    <span class="text-sm font-medium">Megáfono</span>
+                </button>
+                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all" data-effect="telephone">
+                    <i class="fa-solid fa-phone text-xl"></i>
+                    <span class="text-sm font-medium">Teléfono Antiguo</span>
+                </button>
+                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all col-span-2" data-effect="cave">
+                    <i class="fa-solid fa-dungeon text-xl"></i>
+                    <span class="text-sm font-medium">Cueva (Eco Profundo)</span>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Action Bar -->
+    <div class="fixed bottom-0 left-0 right-0 p-4 glass-panel z-20 border-t border-gray-700">
+        <button id="toggleAudioBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold py-4 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all flex justify-center items-center gap-3">
+            <i class="fa-solid fa-power-off"></i> <span>INICIAR TRANSMISIÓN</span>
+        </button>
+    </div>
+
+    <!-- Hidden Audio Element for Output Routing -->
+    <audio id="outputMonitor" autoplay></audio>
+
+    <script>
+        // --- PWA SETUP (Dynamic Manifest & Service Worker) ---
+        const setupPWA = () => {
+            const manifest = {
+                name: "Walkie-Talkie FX Pro",
+                short_name: "WalkieFX",
+                start_url: ".",
+                display: "standalone",
+                background_color: "#111827",
+                theme_color: "#1f2937",
+                icons: [
+                    {
+                        src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgd2lkdGg9JzUxMicgaGVpZ2h0PSc1MTInPjxwYXRoIGZpbGw9JyMzYjgyZjYnIGQ9J00xMiwyQzYuNDgsMiwyLDYuNDgsMiwxMnM0LjQ4LDEwLDEwLDEwczEwLTQuNDgsMTAtMTBTMTcuNTIsMiwxMiwyeiBNMTYsMTNoLTR2NGgtMnYtNGgtNFYxMWg0VjdoMnY0aDRWMTN6Jy8+PC9zdmc+",
+                        sizes: "192x192 512x512",
+                        type: "image/svg+xml"
+                    }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = manifestURL;
+            document.head.appendChild(link);
+
+            const swCode = `
+                self.addEventListener('install', (e) => self.skipWaiting());
+                self.addEventListener('activate', (e) => self.clients.claim());
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(fetch(e.request).catch(() => new Response('Offline mode not fully supported.')));
+                });
+            `;
+            const swBlob = new Blob([swCode], {type: 'application/javascript'});
+            const swURL = URL.createObjectURL(swBlob);
+
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register(swURL).catch(err => console.error("SW Register Error:", err));
+            }
+
+            // Install Prompt handling
+            let deferredPrompt;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                document.getElementById('installBtnContainer').classList.remove('hidden');
+            });
+
+            document.getElementById('installBtn').addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        document.getElementById('installBtnContainer').classList.add('hidden');
+                    }
+                    deferredPrompt = null;
+                }
+            });
+        };
+        setupPWA();
+
+        // --- APP LOGIC ---
+        const inputSelect = document.getElementById('inputDevice');
+        const outputSelect = document.getElementById('outputDevice');
+        const toggleBtn = document.getElementById('toggleAudioBtn');
+        const statusText = document.getElementById('statusText');
+        const outputMonitor = document.getElementById('outputMonitor');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const effectBtns = document.querySelectorAll('.effect-btn');
+        
+        let isRunning = false;
+        let audioCtx;
+        let mediaStream;
+        let sourceNode;
+        let currentEffect = 'none';
+        let effectNodes = [];
+        let analyser;
+        let mediaStreamDestination;
+        let animationId;
+
+        // Check compatibility
+        if (!HTMLAudioElement.prototype.setSinkId) {
+            document.getElementById('outputWarning').classList.remove('hidden');
+            outputSelect.disabled = true;
+            outputSelect.innerHTML = '<option>Predeterminado del Sistema</option>';
+        }
+
+        // 1. Get Devices
+        async function getDevices() {
+            try {
+                // Request initial permission to get labels
+                const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                tempStream.getTracks().forEach(t => t.stop());
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                
+                inputSelect.innerHTML = '';
+                if (HTMLAudioElement.prototype.setSinkId) outputSelect.innerHTML = '';
+
+                let hasInput = false;
+
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    
+                    if (device.kind === 'audioinput') {
+                        option.text = device.label || `Micrófono ${inputSelect.length + 1}`;
+                        inputSelect.appendChild(option);
+                        hasInput = true;
+                    } else if (device.kind === 'audiooutput' && HTMLAudioElement.prototype.setSinkId) {
+                        option.text = device.label || `Altavoz ${outputSelect.length + 1}`;
+                        outputSelect.appendChild(option);
+                    }
+                });
+
+                if (!hasInput) {
+                    alert("No se detectó ningún micrófono.");
+                }
+
+            } catch (err) {
+                console.error("Error enumerando dispositivos:", err);
+                alert("Debes dar permiso al micrófono para buscar dispositivos.");
+            }
+        }
+
+        // 2. Audio Processing Graph
+        function makeDistortionCurve(amount) {
+            const k = typeof amount === 'number' ? amount : 50;
+            const n_samples = 44100;
+            const curve = new Float32Array(n_samples);
+            const deg = Math.PI / 180;
+            let x;
+            for (let i = 0; i < n_samples; ++i) {
+                x = i * 2 / n_samples - 1;
+                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+            }
+            return curve;
+        }
+
+        function clearEffects() {
+            if (effectNodes.length > 0) {
+                effectNodes.forEach(node => node.disconnect());
+                effectNodes = [];
+            }
+            if (sourceNode) {
+                sourceNode.disconnect();
+            }
+        }
+
+        function applyEffectToGraph() {
+            if (!audioCtx || !sourceNode || !mediaStreamDestination) return;
+
+            clearEffects();
+
+            // Setup new chain
+            let lastNode = sourceNode;
+
+            switch (currentEffect) {
+                case 'walkietalkie':
+                    // Radio effect: Bandpass + Distortion + slight noise
+                    const hpFilter = audioCtx.createBiquadFilter();
+                    hpFilter.type = 'highpass';
+                    hpFilter.frequency.value = 400;
+
+                    const lpFilter = audioCtx.createBiquadFilter();
+                    lpFilter.type = 'lowpass';
+                    lpFilter.frequency.value = 3000;
+
+                    const distortion = audioCtx.createWaveShaper();
+                    distortion.curve = makeDistortionCurve(40);
+                    distortion.oversample = '4x';
+
+                    lastNode.connect(hpFilter);
+                    hpFilter.connect(lpFilter);
+                    lpFilter.connect(distortion);
+                    lastNode = distortion;
+                    effectNodes.push(hpFilter, lpFilter, distortion);
+                    break;
+
+                case 'megaphone':
+                    const bandpass = audioCtx.createBiquadFilter();
+                    bandpass.type = 'bandpass';
+                    bandpass.frequency.value = 1000;
+                    bandpass.Q.value = 5;
+
+                    const megaDist = audioCtx.createWaveShaper();
+                    megaDist.curve = makeDistortionCurve(60);
+
+                    const gainNode = audioCtx.createGain();
+                    gainNode.gain.value = 2.0;
+
+                    lastNode.connect(bandpass);
+                    bandpass.connect(megaDist);
+                    megaDist.connect(gainNode);
+                    lastNode = gainNode;
+                    effectNodes.push(bandpass, megaDist, gainNode);
+                    break;
+
+                case 'telephone':
+                    const telHp = audioCtx.createBiquadFilter();
+                    telHp.type = 'highpass';
+                    telHp.frequency.value = 500;
+                    const telLp = audioCtx.createBiquadFilter();
+                    telLp.type = 'lowpass';
+                    telLp.frequency.value = 2000;
+
+                    lastNode.connect(telHp);
+                    telHp.connect(telLp);
+                    lastNode = telLp;
+                    effectNodes.push(telHp, telLp);
+                    break;
+
+                case 'robot':
+                    // Ring Modulation using an Oscillator
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sawtooth';
+                    osc.frequency.value = 40; // Low frequency for robotic hum
+
+                    const robotGain = audioCtx.createGain();
+                    robotGain.gain.value = 0; // modulated by osc
+
+                    lastNode.connect(robotGain);
+                    osc.connect(robotGain.gain);
+                    osc.start();
+
+                    // Boost the output a bit
+                    const outGain = audioCtx.createGain();
+                    outGain.gain.value = 1.5;
+                    robotGain.connect(outGain);
+
+                    lastNode = outGain;
+                    effectNodes.push(osc, robotGain, outGain);
+                    break;
+
+                case 'alien':
+                    // Fast sine modulation (Tremolo/Ring Mod) + Delay
+                    const alienOsc = audioCtx.createOscillator();
+                    alienOsc.type = 'sine';
+                    alienOsc.frequency.value = 800; 
+
+                    const alienGain = audioCtx.createGain();
+                    lastNode.connect(alienGain);
+                    alienOsc.connect(alienGain.gain);
+                    alienOsc.start();
+
+                    const alienDelay = audioCtx.createDelay();
+                    alienDelay.delayTime.value = 0.05;
+
+                    alienGain.connect(alienDelay);
+                    lastNode = alienDelay;
+                    effectNodes.push(alienOsc, alienGain, alienDelay);
+                    break;
+
+                case 'cave':
+                    // Multiple delays for echo/reverb simulation
+                    const delay1 = audioCtx.createDelay(1.0);
+                    delay1.delayTime.value = 0.3;
+                    const feedback1 = audioCtx.createGain();
+                    feedback1.gain.value = 0.4;
+                    
+                    const caveLp = audioCtx.createBiquadFilter();
+                    caveLp.type = 'lowpass';
+                    caveLp.frequency.value = 1500;
+
+                    const merger = audioCtx.createGain();
+
+                    lastNode.connect(merger); // dry
+                    lastNode.connect(delay1); // wet path
+                    delay1.connect(feedback1);
+                    feedback1.connect(delay1);
+                    delay1.connect(caveLp);
+                    caveLp.connect(merger);
+
+                    lastNode = merger;
+                    effectNodes.push(delay1, feedback1, caveLp, merger);
+                    break;
+
+                case 'none':
+                default:
+                    // Direct connection, no nodes added
+                    break;
+            }
+
+            // Always connect to Analyser then Destination
+            lastNode.connect(analyser);
+            analyser.connect(mediaStreamDestination);
+        }
+
+        // 3. Start/Stop Engine
+        async function toggleAudio() {
+            if (isRunning) {
+                stopAudio();
+            } else {
+                await startAudio();
+            }
+        }
+
+        async function startAudio() {
+            try {
+                const inputId = inputSelect.value;
+                const outputId = outputSelect.value;
+
+                // 1. Get Stream
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        deviceId: inputId ? { exact: inputId } : undefined,
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    }
+                });
+
+                // 2. Setup Audio Context
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+                
+                // Destination specifically for routing to our hidden audio element
+                mediaStreamDestination = audioCtx.createMediaStreamDestination();
+                
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 256;
+
+                // 3. Apply selected effect
+                applyEffectToGraph();
+
+                // 4. Route to output element
+                outputMonitor.srcObject = mediaStreamDestination.stream;
+                
+                if (HTMLAudioElement.prototype.setSinkId && outputId) {
+                    await outputMonitor.setSinkId(outputId);
+                }
+
+                await outputMonitor.play();
+
+                // Update UI
+                isRunning = true;
+                toggleBtn.innerHTML = '<i class="fa-solid fa-stop"></i> <span>DETENER TRANSMISIÓN</span>';
+                toggleBtn.classList.replace('bg-blue-600', 'bg-red-600');
+                toggleBtn.classList.replace('hover:bg-blue-500', 'hover:bg-red-500');
+                toggleBtn.classList.replace('shadow-[0_0_15px_rgba(37,99,235,0.5)]', 'shadow-[0_0_15px_rgba(220,38,38,0.5)]');
+                
+                statusText.textContent = "Transmitiendo";
+                statusText.className = "text-green-400 font-bold animate-pulse";
+                
+                inputSelect.disabled = true;
+                outputSelect.disabled = true;
+
+                drawVisualizer();
+
+            } catch (err) {
+                console.error("Error iniciando audio:", err);
+                alert("No se pudo iniciar el audio. Verifica permisos o si otro programa usa el micrófono.");
+            }
+        }
+
+        function stopAudio() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            if (audioCtx) {
+                audioCtx.close();
+            }
+            
+            outputMonitor.srcObject = null;
+            cancelAnimationFrame(animationId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('volumeIndicator').textContent = "Vol: 0%";
+
+            isRunning = false;
+            toggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> <span>INICIAR TRANSMISIÓN</span>';
+            toggleBtn.classList.replace('bg-red-600', 'bg-blue-600');
+            toggleBtn.classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
+            toggleBtn.classList.replace('shadow-[0_0_15px_rgba(220,38,38,0.5)]', 'shadow-[0_0_15px_rgba(37,99,235,0.5)]');
+            
+            statusText.textContent = "Apagado";
+            statusText.className = "text-red-400 font-bold";
+
+            inputSelect.disabled = false;
+            if (HTMLAudioElement.prototype.setSinkId) outputSelect.disabled = false;
+        }
+
+        // 4. Visualizer
+        function drawVisualizer() {
+            if (!isRunning) return;
+            
+            animationId = requestAnimationFrame(drawVisualizer);
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            ctx.fillStyle = '#030712';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+            let sum = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = dataArray[i] / 2;
+                sum += dataArray[i];
+
+                // Color gradient based on height
+                const r = barHeight + (25 * (i / bufferLength));
+                const g = 250 * (i / bufferLength);
+                const b = 50;
+
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+
+                x += barWidth + 1;
+            }
+
+            // Calculate approximate volume %
+            const avg = sum / bufferLength;
+            const volPercent = Math.min(100, Math.round((avg / 128) * 100));
+            document.getElementById('volumeIndicator').textContent = `Vol: ${volPercent}%`;
+        }
+
+        // Resize canvas correctly
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth - 32; // padding offset
+            canvas.height = 80;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 5. Event Listeners
+        toggleBtn.addEventListener('click', toggleAudio);
+
+        effectBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update UI
+                effectBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Update effect
+                currentEffect = btn.getAttribute('data-effect');
+                
+                // If running, re-route graph immediately
+                if (isRunning) {
+                    applyEffectToGraph();
+                }
+            });
+        });
+
+        // Init devices on load
+        window.addEventListener('load', getDevices);
+        // Sometimes device labels don't load until permission is granted in some browsers, 
+        // a dedicated button to request permissions might be needed in a production scenario,
+        // but here we request it on `getDevices()` load.
+
+    </script>
+</body>
+</html>
