@@ -2,34 +2,51 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#1f2937">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Walkie-Talkie FX Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #111827; color: #f3f4f6; overscroll-behavior-y: none; }
+        body { background-color: #111827; color: #f3f4f6; overscroll-behavior-y: none; -webkit-user-select: none; user-select: none; }
         .glass-panel { background: rgba(31, 41, 55, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(75, 85, 99, 0.4); }
         .effect-btn.active { background-color: #3b82f6; color: white; border-color: #60a5fa; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
         canvas { width: 100%; height: 80px; border-radius: 0.5rem; background-color: #030712; border: 1px solid #374151; }
         select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
+        #permissionOverlay { position: absolute; inset: 0; background: rgba(17, 24, 39, 0.95); z-index: 50; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; text-align: center; }
+        .version-tag { position: fixed; bottom: 80px; right: 10px; font-size: 0.65rem; color: rgba(156, 163, 175, 0.4); z-index: 10; pointer-events: none; font-family: monospace; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="flex flex-col h-screen overflow-hidden relative">
+
+    <div class="version-tag">v0.0.4</div>
+
+    <!-- Pantalla de Permisos -->
+    <div id="permissionOverlay">
+        <i class="fa-solid fa-unlock-keyhole text-5xl text-blue-500 mb-6"></i>
+        <h2 class="text-2xl font-bold mb-4">Acceso Requerido</h2>
+        <p class="text-gray-400 mb-8">Para detectar tus auriculares Bluetooth y micrófonos, el navegador requiere que autorices el acceso interactuando con este botón.</p>
+        <button id="requestPermsBtn" class="bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold py-4 px-6 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all">
+            <i class="fa-solid fa-check mr-2"></i> Autorizar y Buscar Dispositivos
+        </button>
+    </div>
 
     <!-- Header -->
-    <header class="p-4 glass-panel flex justify-between items-center z-10 shadow-lg">
+    <header class="p-4 glass-panel flex justify-between items-center z-10 shadow-lg safe-top">
         <h1 class="text-xl font-bold text-blue-400 flex items-center gap-2">
             <i class="fa-solid fa-satellite-dish"></i> Walkie-Talkie FX
         </h1>
         <div id="installBtnContainer" class="hidden">
             <button id="installBtn" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold transition-colors shadow-lg">
-                <i class="fa-solid fa-download mr-1"></i> Instalar
+                <i class="fa-solid fa-download mr-1"></i> Instalar App
             </button>
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
+    <main class="flex-1 overflow-y-auto p-4 space-y-6 pb-24 hidden" id="mainContent">
         
         <div class="bg-yellow-900/50 border border-yellow-600 text-yellow-200 p-3 rounded-lg text-sm flex items-start gap-3 shadow-md">
             <i class="fa-solid fa-triangle-exclamation mt-1"></i>
@@ -38,30 +55,21 @@
 
         <!-- Devices Selection -->
         <section class="glass-panel p-4 rounded-xl space-y-4">
-            <div class="flex justify-between items-center border-b border-gray-600 pb-2">
-                <h2 class="text-lg font-semibold"><i class="fa-solid fa-sliders mr-2"></i> Configuración de I/O</h2>
-                <button id="refreshDevicesBtn" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-sm text-blue-400 border border-gray-500 transition-colors">
-                    <i class="fa-solid fa-rotate-right mr-1"></i> Buscar
-                </button>
-            </div>
+            <h2 class="text-lg font-semibold border-b border-gray-600 pb-2"><i class="fa-solid fa-sliders mr-2"></i> Configuración de I/O</h2>
             
             <div class="space-y-2">
-                <label class="block text-sm text-gray-400">Entrada (Micrófono)</label>
+                <label class="block text-sm text-gray-400">Entrada de Audio (Micrófono)</label>
                 <div class="relative">
-                    <select id="inputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
-                        <option value="">-- Haz clic en Buscar primero --</option>
-                    </select>
+                    <select id="inputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"></select>
                 </div>
             </div>
 
             <div class="space-y-2">
-                <label class="block text-sm text-gray-400">Salida (Altavoz/Auriculares)</label>
+                <label class="block text-sm text-gray-400">Salida de Audio (Auriculares)</label>
                 <div class="relative">
-                    <select id="outputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
-                        <option value="">-- Haz clic en Buscar primero --</option>
-                    </select>
+                    <select id="outputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"></select>
                 </div>
-                <p id="outputWarning" class="text-xs text-red-400 hidden">Tu navegador (ej. iOS/Safari) no soporta elegir salida. Usará el predeterminado.</p>
+                <p id="outputWarning" class="text-xs text-blue-400 hidden"><i class="fa-solid fa-circle-info mr-1"></i> Tu dispositivo gestiona la salida automáticamente (ej. Bluetooth conectado).</p>
             </div>
         </section>
 
@@ -92,27 +100,14 @@
                 </button>
                 <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all" data-effect="alien">
                     <i class="fa-brands fa-space-awesome text-xl"></i>
-                    <span class="text-sm font-medium">Extraterrestre</span>
-                </button>
-                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all" data-effect="megaphone">
-                    <i class="fa-solid fa-bullhorn text-xl"></i>
-                    <span class="text-sm font-medium">Megáfono</span>
-                </button>
-                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all" data-effect="telephone">
-                    <i class="fa-solid fa-phone text-xl"></i>
-                    <span class="text-sm font-medium">Teléfono Antiguo</span>
-                </button>
-                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all col-span-2" data-effect="cave">
-                    <i class="fa-solid fa-dungeon text-xl"></i>
-                    <span class="text-sm font-medium">Cueva (Eco Profundo)</span>
+                    <span class="text-sm font-medium">Extranjero</span>
                 </button>
             </div>
         </section>
-
     </main>
 
     <!-- Bottom Action Bar -->
-    <div class="fixed bottom-0 left-0 right-0 p-4 glass-panel z-20 border-t border-gray-700">
+    <div class="fixed bottom-0 left-0 right-0 p-4 glass-panel z-20 border-t border-gray-700 hidden safe-bottom" id="bottomBar">
         <button id="toggleAudioBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold py-4 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all flex justify-center items-center gap-3">
             <i class="fa-solid fa-power-off"></i> <span>INICIAR TRANSMISIÓN</span>
         </button>
@@ -121,255 +116,297 @@
     <audio id="outputMonitor" autoplay></audio>
 
     <script>
-        // PWA Setup
+        // --- PWA SETUP OBLIGATORIO PARA INSTALACIÓN NATIVA ---
+        const APP_VERSION = 'v0.0.4';
+        
         const setupPWA = () => {
+            // 1. Manifest con parámetros estrictos
             const manifest = {
-                id: "walkie-talkie-fx-app",
+                id: "/walkie-talkie-fx/", // ID único necesario para actualizar
                 name: "Walkie-Talkie FX Pro",
                 short_name: "WalkieFX",
                 start_url: window.location.href,
                 display: "standalone",
-                display_override: ["window-controls-overlay", "standalone"],
+                display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
                 background_color: "#111827",
                 theme_color: "#1f2937",
+                orientation: "portrait",
                 icons: [
                     {
                         src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgd2lkdGg9JzUxMicgaGVpZ2h0PSc1MTInPjxwYXRoIGZpbGw9JyMzYjgyZjYnIGQ9J00xMiwyQzYuNDgsMiwyLDYuNDgsMiwxMnM0LjQ4LDEwLDEwLDEwczEwLTQuNDgsMTAtMTBTMTcuNTIsMiwxMiwyeiBNMTYsMTNoLTR2NGgtMnYtNGgtNFYxMWg0VjdoMnY0aDRWMTN6Jy8+PC9zdmc+",
-                        sizes: "192x192 512x512",
-                        type: "image/svg+xml"
+                        sizes: "512x512",
+                        type: "image/svg+xml",
+                        purpose: "any maskable" // Requisito Android para íconos nativos
                     }
                 ]
             };
-            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
-            document.head.appendChild(Object.assign(document.createElement('link'), {rel: 'manifest', href: URL.createObjectURL(manifestBlob)}));
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'}));
+            document.head.appendChild(link);
 
+            // 2. Service Worker con estrategia Cache-First pero actualización silenciosa
+            const swCode = `
+                const CACHE_NAME = 'walkie-fx-cache-${APP_VERSION}';
+                
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+
+                self.addEventListener('activate', (e) => {
+                    e.waitUntil(
+                        caches.keys().then((keyList) => {
+                            return Promise.all(keyList.map((key) => {
+                                if (key !== CACHE_NAME) {
+                                    return caches.delete(key); // Borra caché vieja al actualizar versión
+                                }
+                            }));
+                        }).then(() => self.clients.claim())
+                    );
+                });
+
+                self.addEventListener('fetch', (e) => {
+                    // Estrategia Stale-while-revalidate: muestra caché, pero descarga lo nuevo de fondo
+                    e.respondWith(
+                        caches.match(e.request).then((cachedResponse) => {
+                            const fetchPromise = fetch(e.request).then((networkResponse) => {
+                                if(e.request.method === 'GET' && e.request.url.startsWith('http')) {
+                                    caches.open(CACHE_NAME).then((cache) => cache.put(e.request, networkResponse.clone()));
+                                }
+                                return networkResponse;
+                            }).catch(() => cachedResponse); // Si no hay internet, usa caché
+                            
+                            return cachedResponse || fetchPromise;
+                        })
+                    );
+                });
+                
+                // Escuchar mensaje para forzar recarga si hay actualización
+                self.addEventListener('message', (event) => {
+                    if (event.data === 'SKIP_WAITING') { self.skipWaiting(); }
+                });
+            `;
+            
             if ('serviceWorker' in navigator) {
-                const swCode = `self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => self.clients.claim()); self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));`;
-                navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], {type: 'application/javascript'})));
+                const swBlob = new Blob([swCode], {type: 'application/javascript'});
+                const swURL = URL.createObjectURL(swBlob);
+                
+                navigator.serviceWorker.register(swURL).then(reg => {
+                    // Detectar si hay una nueva versión esperando e instalarla
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // Forzar recarga silenciosa para aplicar actualización
+                                newWorker.postMessage('SKIP_WAITING');
+                                window.location.reload(); 
+                            }
+                        });
+                    });
+                });
             }
 
+            // Manejo del botón de instalación
             let deferredPrompt;
             window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault(); deferredPrompt = e;
+                e.preventDefault();
+                deferredPrompt = e;
                 document.getElementById('installBtnContainer').classList.remove('hidden');
             });
+
             document.getElementById('installBtn').addEventListener('click', async () => {
-                if (deferredPrompt) { deferredPrompt.prompt(); await deferredPrompt.userChoice; document.getElementById('installBtnContainer').classList.add('hidden'); deferredPrompt = null; }
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        document.getElementById('installBtnContainer').classList.add('hidden');
+                    }
+                    deferredPrompt = null;
+                }
             });
         };
+        
+        // Iniciar PWA
         setupPWA();
 
-        // APP LOGIC
+        // --- APP LOGIC ---
         const inputSelect = document.getElementById('inputDevice');
         const outputSelect = document.getElementById('outputDevice');
         const toggleBtn = document.getElementById('toggleAudioBtn');
-        const refreshBtn = document.getElementById('refreshDevicesBtn');
         const statusText = document.getElementById('statusText');
         const outputMonitor = document.getElementById('outputMonitor');
         const canvas = document.getElementById('visualizer');
         const ctx = canvas.getContext('2d');
         const effectBtns = document.querySelectorAll('.effect-btn');
+        const overlay = document.getElementById('permissionOverlay');
+        const reqBtn = document.getElementById('requestPermsBtn');
+        const mainContent = document.getElementById('mainContent');
+        const bottomBar = document.getElementById('bottomBar');
         
-        let isRunning = false;
-        let audioCtx, mediaStream, sourceNode, currentEffect = 'none', effectNodes = [], analyser, mediaStreamDestination, animationId;
+        let isRunning = false, audioCtx, mediaStream, sourceNode, currentEffect = 'none', effectNodes = [], analyser, mediaStreamDestination, animationId;
 
-        // Check output support
-        if (!HTMLAudioElement.prototype.setSinkId) {
+        // Validar soporte de salida
+        const supportsSetSinkId = HTMLAudioElement.prototype.setSinkId !== undefined;
+        if (!supportsSetSinkId) {
             document.getElementById('outputWarning').classList.remove('hidden');
             outputSelect.disabled = true;
-            outputSelect.innerHTML = '<option value="">Predeterminado del Sistema</option>';
+            outputSelect.innerHTML = '<option>Salida Automática del Sistema</option>';
         }
 
-        async function getDevices() {
+        async function requestAndGetDevices() {
             try {
-                // Forzar la petición de permisos. Vital para mostrar dispositivos.
                 const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                overlay.style.display = 'none';
+                mainContent.classList.remove('hidden');
+                bottomBar.classList.remove('hidden');
+                resizeCanvas();
+                await updateDeviceList();
                 tempStream.getTracks().forEach(t => t.stop());
+                navigator.mediaDevices.addEventListener('devicechange', updateDeviceList);
+            } catch (err) {
+                console.error("Error pidiendo permisos:", err);
+                alert("Debes permitir el acceso al micrófono.");
+            }
+        }
 
+        async function updateDeviceList() {
+            try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                
                 const currentInput = inputSelect.value;
                 const currentOutput = outputSelect.value;
 
                 inputSelect.innerHTML = '';
-                if (HTMLAudioElement.prototype.setSinkId) outputSelect.innerHTML = '';
-
-                let hasInput = false;
+                if (supportsSetSinkId) outputSelect.innerHTML = '';
 
                 devices.forEach(device => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
-                    
                     if (device.kind === 'audioinput') {
-                        option.text = device.label || `Micrófono ${inputSelect.length + 1} (Requiere permiso)`;
+                        option.text = device.label || `Micrófono Desconocido`;
                         inputSelect.appendChild(option);
-                        hasInput = true;
-                    } else if (device.kind === 'audiooutput' && HTMLAudioElement.prototype.setSinkId) {
-                        option.text = device.label || `Altavoz ${outputSelect.length + 1}`;
+                    } else if (device.kind === 'audiooutput' && supportsSetSinkId) {
+                        option.text = device.label || `Altavoz Desconocido`;
                         outputSelect.appendChild(option);
                     }
                 });
 
-                if (currentInput) inputSelect.value = currentInput;
-                if (currentOutput) outputSelect.value = currentOutput;
-
-                if (!hasInput) {
-                    inputSelect.innerHTML = '<option value="">Ningún micrófono detectado</option>';
-                } else {
-                    refreshBtn.classList.replace('bg-gray-700', 'bg-green-700');
-                    refreshBtn.classList.replace('text-blue-400', 'text-white');
-                    refreshBtn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Detectados';
-                    setTimeout(() => {
-                        refreshBtn.classList.replace('bg-green-700', 'bg-gray-700');
-                        refreshBtn.classList.replace('text-white', 'text-blue-400');
-                        refreshBtn.innerHTML = '<i class="fa-solid fa-rotate-right mr-1"></i> Buscar';
-                    }, 2000);
-                }
-
-            } catch (err) {
-                console.error("Error enumerando dispositivos:", err);
-                if (window.location.protocol === 'file:') {
-                    alert("ERROR: Estás abriendo el archivo localmente (file://). Debes subirlo a GitHub Pages o usar un servidor local (HTTPS) para que funcionen los micrófonos.");
-                } else {
-                    alert("ERROR: Se denegó el permiso del micrófono o no hay dispositivos. Debes permitir el acceso para que la app funcione.");
-                }
-            }
+                if (currentInput && Array.from(inputSelect.options).some(o => o.value === currentInput)) inputSelect.value = currentInput;
+                if (currentOutput && Array.from(outputSelect.options).some(o => o.value === currentOutput)) outputSelect.value = currentOutput;
+            } catch (err) { console.error("Error actualizando lista:", err); }
         }
 
-        refreshBtn.addEventListener('click', getDevices);
-        navigator.mediaDevices.addEventListener('devicechange', getDevices);
+        reqBtn.addEventListener('click', requestAndGetDevices);
 
         outputSelect.addEventListener('change', async () => {
-            if (isRunning && HTMLAudioElement.prototype.setSinkId) {
-                try { await outputMonitor.setSinkId(outputSelect.value); } catch (err) { console.error(err); }
+            if (isRunning && supportsSetSinkId) {
+                try { await outputMonitor.setSinkId(outputSelect.value); } 
+                catch (err) { console.error("Error cambiando salida:", err); }
             }
         });
 
+        // Audio Effects
         function makeDistortionCurve(amount) {
-            const k = typeof amount === 'number' ? amount : 50, n_samples = 44100, curve = new Float32Array(n_samples), deg = Math.PI / 180;
-            for (let i = 0, x; i < n_samples; ++i) { x = i * 2 / n_samples - 1; curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x)); }
+            const k = amount; const n_samples = 44100; const curve = new Float32Array(n_samples); const deg = Math.PI / 180;
+            for (let i = 0; i < n_samples; ++i) { let x = i * 2 / n_samples - 1; curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x)); }
             return curve;
         }
 
         function clearEffects() {
-            if (effectNodes.length > 0) { effectNodes.forEach(n => n.disconnect()); effectNodes = []; }
+            effectNodes.forEach(node => node.disconnect()); effectNodes = [];
             if (sourceNode) sourceNode.disconnect();
         }
 
         function applyEffectToGraph() {
-            if (!audioCtx || !sourceNode || !mediaStreamDestination) return;
+            if (!audioCtx || !sourceNode) return;
             clearEffects();
             let lastNode = sourceNode;
 
-            switch (currentEffect) {
-                case 'walkietalkie':
-                    const hpFilter = audioCtx.createBiquadFilter(); hpFilter.type = 'highpass'; hpFilter.frequency.value = 400;
-                    const lpFilter = audioCtx.createBiquadFilter(); lpFilter.type = 'lowpass'; lpFilter.frequency.value = 3000;
-                    const distortion = audioCtx.createWaveShaper(); distortion.curve = makeDistortionCurve(40); distortion.oversample = '4x';
-                    lastNode.connect(hpFilter); hpFilter.connect(lpFilter); lpFilter.connect(distortion); lastNode = distortion;
-                    effectNodes.push(hpFilter, lpFilter, distortion); break;
-                case 'megaphone':
-                    const bandpass = audioCtx.createBiquadFilter(); bandpass.type = 'bandpass'; bandpass.frequency.value = 1000; bandpass.Q.value = 5;
-                    const megaDist = audioCtx.createWaveShaper(); megaDist.curve = makeDistortionCurve(60);
-                    const gainNode = audioCtx.createGain(); gainNode.gain.value = 2.0;
-                    lastNode.connect(bandpass); bandpass.connect(megaDist); megaDist.connect(gainNode); lastNode = gainNode;
-                    effectNodes.push(bandpass, megaDist, gainNode); break;
-                case 'telephone':
-                    const telHp = audioCtx.createBiquadFilter(); telHp.type = 'highpass'; telHp.frequency.value = 500;
-                    const telLp = audioCtx.createBiquadFilter(); telLp.type = 'lowpass'; telLp.frequency.value = 2000;
-                    lastNode.connect(telHp); telHp.connect(telLp); lastNode = telLp; effectNodes.push(telHp, telLp); break;
-                case 'robot':
-                    const osc = audioCtx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 40; 
-                    const robotGain = audioCtx.createGain(); robotGain.gain.value = 0; 
-                    lastNode.connect(robotGain); osc.connect(robotGain.gain); osc.start();
-                    const outGain = audioCtx.createGain(); outGain.gain.value = 1.5; robotGain.connect(outGain);
-                    lastNode = outGain; effectNodes.push(osc, robotGain, outGain); break;
-                case 'alien':
-                    const alienOsc = audioCtx.createOscillator(); alienOsc.type = 'sine'; alienOsc.frequency.value = 800; 
-                    const alienGain = audioCtx.createGain(); lastNode.connect(alienGain); alienOsc.connect(alienGain.gain); alienOsc.start();
-                    const alienDelay = audioCtx.createDelay(); alienDelay.delayTime.value = 0.05; alienGain.connect(alienDelay);
-                    lastNode = alienDelay; effectNodes.push(alienOsc, alienGain, alienDelay); break;
-                case 'cave':
-                    const delay1 = audioCtx.createDelay(1.0); delay1.delayTime.value = 0.3;
-                    const feedback1 = audioCtx.createGain(); feedback1.gain.value = 0.4;
-                    const caveLp = audioCtx.createBiquadFilter(); caveLp.type = 'lowpass'; caveLp.frequency.value = 1500;
-                    const merger = audioCtx.createGain();
-                    lastNode.connect(merger); lastNode.connect(delay1); delay1.connect(feedback1); feedback1.connect(delay1); delay1.connect(caveLp); caveLp.connect(merger);
-                    lastNode = merger; effectNodes.push(delay1, feedback1, caveLp, merger); break;
+            if (currentEffect === 'walkietalkie') {
+                const hp = audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 400;
+                const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;
+                const dist = audioCtx.createWaveShaper(); dist.curve = makeDistortionCurve(40); dist.oversample = '4x';
+                lastNode.connect(hp); hp.connect(lp); lp.connect(dist); lastNode = dist; effectNodes.push(hp, lp, dist);
+            } else if (currentEffect === 'robot') {
+                const osc = audioCtx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 40;
+                const gain = audioCtx.createGain(); gain.gain.value = 0;
+                lastNode.connect(gain); osc.connect(gain.gain); osc.start();
+                const outGain = audioCtx.createGain(); outGain.gain.value = 1.5; gain.connect(outGain);
+                lastNode = outGain; effectNodes.push(osc, gain, outGain);
+            } else if (currentEffect === 'alien') {
+                const osc = audioCtx.createOscillator(); osc.type = 'sine'; osc.frequency.value = 800;
+                const gain = audioCtx.createGain(); lastNode.connect(gain); osc.connect(gain.gain); osc.start();
+                const delay = audioCtx.createDelay(); delay.delayTime.value = 0.05; gain.connect(delay);
+                lastNode = delay; effectNodes.push(osc, gain, delay);
             }
-            lastNode.connect(analyser); analyser.connect(mediaStreamDestination);
+
+            lastNode.connect(analyser);
+            analyser.connect(mediaStreamDestination);
         }
 
-        async function toggleAudio() { isRunning ? stopAudio() : await startAudio(); }
+        // Engine Toggle
+        async function toggleAudio() {
+            if (isRunning) {
+                if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+                if (audioCtx) audioCtx.close();
+                outputMonitor.srcObject = null; cancelAnimationFrame(animationId);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                isRunning = false;
+                toggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> <span>INICIAR TRANSMISIÓN</span>';
+                toggleBtn.classList.replace('bg-red-600', 'bg-blue-600'); toggleBtn.classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
+                statusText.textContent = "Apagado"; statusText.className = "text-red-400 font-bold";
+                document.getElementById('volumeIndicator').textContent = "Vol: 0%";
+                inputSelect.disabled = false;
+            } else {
+                try {
+                    const inputId = inputSelect.value;
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: inputId ? { exact: inputId } : undefined, echoCancellation: false, noiseSuppression: false }});
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+                    mediaStreamDestination = audioCtx.createMediaStreamDestination();
+                    analyser = audioCtx.createAnalyser(); analyser.fftSize = 256;
+                    
+                    applyEffectToGraph();
+                    
+                    outputMonitor.srcObject = mediaStreamDestination.stream;
+                    if (supportsSetSinkId && outputSelect.value) await outputMonitor.setSinkId(outputSelect.value);
+                    await outputMonitor.play();
 
-        async function startAudio() {
-            try {
-                if (!inputSelect.value) {
-                    alert("Primero debes hacer clic en 'Buscar' y dar permisos de micrófono.");
-                    return;
-                }
-
-                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: inputSelect.value ? { exact: inputSelect.value } : undefined, echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                sourceNode = audioCtx.createMediaStreamSource(mediaStream);
-                mediaStreamDestination = audioCtx.createMediaStreamDestination();
-                analyser = audioCtx.createAnalyser(); analyser.fftSize = 256;
-                applyEffectToGraph();
-                
-                outputMonitor.srcObject = mediaStreamDestination.stream;
-                if (HTMLAudioElement.prototype.setSinkId && outputSelect.value) await outputMonitor.setSinkId(outputSelect.value);
-                await outputMonitor.play();
-
-                isRunning = true;
-                toggleBtn.innerHTML = '<i class="fa-solid fa-stop"></i> <span>DETENER TRANSMISIÓN</span>';
-                toggleBtn.classList.replace('bg-blue-600', 'bg-red-600'); toggleBtn.classList.replace('hover:bg-blue-500', 'hover:bg-red-500'); toggleBtn.classList.replace('shadow-[0_0_15px_rgba(37,99,235,0.5)]', 'shadow-[0_0_15px_rgba(220,38,38,0.5)]');
-                statusText.textContent = "Transmitiendo"; statusText.className = "text-green-400 font-bold animate-pulse";
-                inputSelect.disabled = true;
-                drawVisualizer();
-            } catch (err) {
-                console.error("Error iniciando:", err);
-                alert("Error al iniciar. Asegúrate de haber dado permiso al micrófono.");
+                    isRunning = true;
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-stop"></i> <span>DETENER TRANSMISIÓN</span>';
+                    toggleBtn.classList.replace('bg-blue-600', 'bg-red-600'); toggleBtn.classList.replace('hover:bg-blue-500', 'hover:bg-red-500');
+                    statusText.textContent = "Transmitiendo"; statusText.className = "text-green-400 font-bold animate-pulse";
+                    inputSelect.disabled = true;
+                    drawVisualizer();
+                } catch (err) { alert("Error iniciando audio."); console.error(err); }
             }
         }
 
-        function stopAudio() {
-            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-            if (audioCtx) audioCtx.close();
-            outputMonitor.srcObject = null; cancelAnimationFrame(animationId);
-            ctx.clearRect(0, 0, canvas.width, canvas.height); document.getElementById('volumeIndicator').textContent = "Vol: 0%";
-            isRunning = false;
-            toggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> <span>INICIAR TRANSMISIÓN</span>';
-            toggleBtn.classList.replace('bg-red-600', 'bg-blue-600'); toggleBtn.classList.replace('hover:bg-red-500', 'hover:bg-blue-500'); toggleBtn.classList.replace('shadow-[0_0_15px_rgba(220,38,38,0.5)]', 'shadow-[0_0_15px_rgba(37,99,235,0.5)]');
-            statusText.textContent = "Apagado"; statusText.className = "text-red-400 font-bold";
-            inputSelect.disabled = false;
-        }
+        toggleBtn.addEventListener('click', toggleAudio);
+
+        effectBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                effectBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active');
+                currentEffect = btn.getAttribute('data-effect');
+                if (isRunning) applyEffectToGraph();
+            });
+        });
 
         function drawVisualizer() {
             if (!isRunning) return;
             animationId = requestAnimationFrame(drawVisualizer);
-            const bufferLength = analyser.frequencyBinCount, dataArray = new Uint8Array(bufferLength);
-            analyser.getByteFrequencyData(dataArray);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(dataArray);
             ctx.fillStyle = '#030712'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const barWidth = (canvas.width / bufferLength) * 2.5;
-            let x = 0, sum = 0;
-            for (let i = 0; i < bufferLength; i++) {
+            const barWidth = (canvas.width / analyser.frequencyBinCount) * 2.5; let x = 0, sum = 0;
+            for (let i = 0; i < analyser.frequencyBinCount; i++) {
                 let barHeight = dataArray[i] / 2; sum += dataArray[i];
-                ctx.fillStyle = `rgb(${barHeight + (25 * (i / bufferLength))},${250 * (i / bufferLength)},50)`;
+                ctx.fillStyle = `rgb(${barHeight + (25 * (i / analyser.frequencyBinCount))},${250 * (i / analyser.frequencyBinCount)},50)`;
                 ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight); x += barWidth + 1;
             }
-            document.getElementById('volumeIndicator').textContent = `Vol: ${Math.min(100, Math.round(((sum / bufferLength) / 128) * 100))}%`;
+            document.getElementById('volumeIndicator').textContent = `Vol: ${Math.min(100, Math.round(((sum / analyser.frequencyBinCount) / 128) * 100))}%`;
         }
 
         function resizeCanvas() { canvas.width = canvas.parentElement.clientWidth - 32; canvas.height = 80; }
-        window.addEventListener('resize', resizeCanvas); resizeCanvas();
-
-        toggleBtn.addEventListener('click', toggleAudio);
-        effectBtns.forEach(btn => btn.addEventListener('click', () => {
-            effectBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active');
-            currentEffect = btn.getAttribute('data-effect');
-            if (isRunning) applyEffectToGraph();
-        }));
-
+        window.addEventListener('resize', resizeCanvas);
     </script>
 </body>
 </html>
