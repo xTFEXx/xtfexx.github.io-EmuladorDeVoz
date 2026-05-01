@@ -8,7 +8,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Walkie-Talkie FX Pro</title>
     
-    <!-- ENLACE AL MANIFEST REAL -->
     <link rel="manifest" href="./manifest.json">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,7 +19,9 @@
         canvas { width: 100%; height: 80px; border-radius: 0.5rem; background-color: #030712; border: 1px solid #374151; }
         select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
         #permissionOverlay { position: absolute; inset: 0; background: rgba(17, 24, 39, 0.95); z-index: 50; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; text-align: center; }
-        .version-tag { position: fixed; bottom: 80px; right: 10px; font-size: 0.65rem; color: rgba(156, 163, 175, 0.4); z-index: 10; pointer-events: none; font-family: monospace; }
+        
+        /* Marca de agua solucionada y muy visible */
+        .version-tag { position: fixed; top: 1rem; right: 1rem; background: rgba(0, 0, 0, 0.85); color: #60a5fa; padding: 0.3rem 0.6rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: bold; z-index: 9999; font-family: monospace; border: 1px solid #374151; box-shadow: 0 2px 5px rgba(0,0,0,0.5); pointer-events: none; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden relative">
@@ -30,7 +31,7 @@
     <div id="permissionOverlay">
         <i class="fa-solid fa-unlock-keyhole text-5xl text-blue-500 mb-6"></i>
         <h2 class="text-2xl font-bold mb-4">Acceso Requerido</h2>
-        <p class="text-gray-400 mb-8">Para detectar tus auriculares Bluetooth y micrófonos, el navegador requiere que autorices el acceso.</p>
+        <p class="text-gray-400 mb-8">Para detectar tus dispositivos de audio, el navegador requiere que autorices el acceso interactuando aquí.</p>
         <button id="requestPermsBtn" class="bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold py-4 px-6 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all">
             <i class="fa-solid fa-check mr-2"></i> Autorizar y Buscar
         </button>
@@ -38,11 +39,11 @@
 
     <header class="p-4 glass-panel flex justify-between items-center z-10 shadow-lg safe-top">
         <h1 class="text-xl font-bold text-blue-400 flex items-center gap-2">
-            <i class="fa-solid fa-satellite-dish"></i> Walkie-Talkie FX
+            <i class="fa-solid fa-satellite-dish"></i> WalkieFX
         </h1>
         <div id="installBtnContainer" class="hidden">
             <button id="installBtn" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold transition-colors shadow-lg">
-                <i class="fa-solid fa-download mr-1"></i> Instalar App
+                <i class="fa-solid fa-download mr-1"></i> Instalar
             </button>
         </div>
     </header>
@@ -50,19 +51,22 @@
     <main class="flex-1 overflow-y-auto p-4 space-y-6 pb-24 hidden" id="mainContent">
         <div class="bg-yellow-900/50 border border-yellow-600 text-yellow-200 p-3 rounded-lg text-sm flex items-start gap-3 shadow-md">
             <i class="fa-solid fa-triangle-exclamation mt-1"></i>
-            <p><strong>Aviso:</strong> Usa auriculares para evitar acoples sonoros.</p>
+            <p><strong>Aviso Bluetooth:</strong> Si tu micrófono Bluetooth no aparece en la lista, selecciona el "Predeterminado". El celular lo usará automáticamente.</p>
         </div>
 
         <section class="glass-panel p-4 rounded-xl space-y-4">
-            <h2 class="text-lg font-semibold border-b border-gray-600 pb-2"><i class="fa-solid fa-sliders mr-2"></i> Configuración de I/O</h2>
+            <div class="flex justify-between items-center border-b border-gray-600 pb-2">
+                <h2 class="text-lg font-semibold"><i class="fa-solid fa-sliders mr-2"></i> I/O de Audio</h2>
+                <button id="refreshDevicesBtn" class="text-blue-400 text-sm hover:text-blue-300"><i class="fa-solid fa-rotate-right"></i> Recargar</button>
+            </div>
+            
             <div class="space-y-2">
-                <label class="block text-sm text-gray-400">Entrada de Audio</label>
+                <label class="block text-sm text-gray-400">Entrada (Micrófono)</label>
                 <select id="inputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:outline-none"></select>
             </div>
             <div class="space-y-2">
-                <label class="block text-sm text-gray-400">Salida de Audio</label>
+                <label class="block text-sm text-gray-400">Salida (Altavoz/Auricular)</label>
                 <select id="outputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:outline-none"></select>
-                <p id="outputWarning" class="text-xs text-blue-400 hidden"><i class="fa-solid fa-circle-info mr-1"></i> Salida gestionada por el sistema.</p>
             </div>
         </section>
 
@@ -77,10 +81,10 @@
         <section class="glass-panel p-4 rounded-xl">
             <h2 class="text-lg font-semibold border-b border-gray-600 pb-2 mb-4"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Efectos</h2>
             <div class="grid grid-cols-2 gap-3" id="effectsContainer">
-                <button class="effect-btn active bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2" data-effect="none">
+                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2" data-effect="none">
                     <i class="fa-solid fa-microphone text-xl"></i> Normal
                 </button>
-                <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2" data-effect="walkietalkie">
+                <button class="effect-btn active bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2" data-effect="walkietalkie">
                     <i class="fa-solid fa-walkie-talkie text-xl"></i> Walkie-Talkie
                 </button>
                 <button class="effect-btn bg-gray-800 border border-gray-600 rounded-lg p-3 flex flex-col items-center justify-center gap-2" data-effect="robot">
@@ -102,7 +106,7 @@
     <audio id="outputMonitor" autoplay></audio>
 
     <script>
-        // --- PWA REGISTRATION (Llamada al archivo real) ---
+        // --- PWA REGISTRATION ---
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js').then(reg => {
                 reg.addEventListener('updatefound', () => {
@@ -146,14 +150,14 @@
         const reqBtn = document.getElementById('requestPermsBtn');
         const mainContent = document.getElementById('mainContent');
         const bottomBar = document.getElementById('bottomBar');
+        const refreshBtn = document.getElementById('refreshDevicesBtn');
         
-        let isRunning = false, audioCtx, mediaStream, sourceNode, currentEffect = 'none', effectNodes = [], analyser, mediaStreamDestination, animationId;
+        let isRunning = false, audioCtx, mediaStream, sourceNode, currentEffect = 'walkietalkie', effectNodes = [], analyser, mediaStreamDestination, animationId;
 
         const supportsSetSinkId = HTMLAudioElement.prototype.setSinkId !== undefined;
         if (!supportsSetSinkId) {
-            document.getElementById('outputWarning').classList.remove('hidden');
             outputSelect.disabled = true;
-            outputSelect.innerHTML = '<option>Salida Automática del Sistema</option>';
+            outputSelect.innerHTML = '<option>Gestionado por el sistema</option>';
         }
 
         async function requestAndGetDevices() {
@@ -178,14 +182,15 @@
                 inputSelect.innerHTML = '';
                 if (supportsSetSinkId) outputSelect.innerHTML = '';
 
+                let micCount = 1;
                 devices.forEach(device => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     if (device.kind === 'audioinput') {
-                        option.text = device.label || `Micrófono Desconocido`;
+                        option.text = device.label || `Micrófono ${micCount++}`;
                         inputSelect.appendChild(option);
                     } else if (device.kind === 'audiooutput' && supportsSetSinkId) {
-                        option.text = device.label || `Altavoz Desconocido`;
+                        option.text = device.label || `Altavoz/Auricular`;
                         outputSelect.appendChild(option);
                     }
                 });
@@ -196,6 +201,7 @@
         }
 
         reqBtn.addEventListener('click', requestAndGetDevices);
+        refreshBtn.addEventListener('click', updateDeviceList);
         outputSelect.addEventListener('change', async () => { if (isRunning && supportsSetSinkId) await outputMonitor.setSinkId(outputSelect.value); });
 
         function makeDistortionCurve(amount) {

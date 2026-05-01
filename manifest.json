@@ -1,8 +1,8 @@
 {
-  "id": "/walkie-talkie-fx/",
+  "id": "walkiefx-v1",
   "name": "Walkie-Talkie FX Pro",
   "short_name": "WalkieFX",
-  "start_url": "./index.html",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#111827",
   "theme_color": "#1f2937",
