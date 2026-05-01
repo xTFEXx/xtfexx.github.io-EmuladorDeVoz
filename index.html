@@ -11,8 +11,6 @@
         .glass-panel { background: rgba(31, 41, 55, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(75, 85, 99, 0.4); }
         .effect-btn.active { background-color: #3b82f6; color: white; border-color: #60a5fa; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
         canvas { width: 100%; height: 80px; border-radius: 0.5rem; background-color: #030712; border: 1px solid #374151; }
-        
-        /* Custom Select Styling */
         select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
     </style>
 </head>
@@ -25,7 +23,7 @@
         </h1>
         <div id="installBtnContainer" class="hidden">
             <button id="installBtn" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold transition-colors shadow-lg">
-                <i class="fa-solid fa-download mr-1"></i> Instalar App
+                <i class="fa-solid fa-download mr-1"></i> Instalar
             </button>
         </div>
     </header>
@@ -33,29 +31,37 @@
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
         
-        <!-- Warning -->
         <div class="bg-yellow-900/50 border border-yellow-600 text-yellow-200 p-3 rounded-lg text-sm flex items-start gap-3 shadow-md">
             <i class="fa-solid fa-triangle-exclamation mt-1"></i>
-            <p><strong>Aviso:</strong> Usa auriculares para evitar acoples sonoros (pitidos fuertes) si activas el micrófono y el altavoz a la vez.</p>
+            <p><strong>Aviso:</strong> Usa auriculares para evitar acoples sonoros.</p>
         </div>
 
         <!-- Devices Selection -->
         <section class="glass-panel p-4 rounded-xl space-y-4">
-            <h2 class="text-lg font-semibold border-b border-gray-600 pb-2"><i class="fa-solid fa-sliders mr-2"></i> Configuración de I/O</h2>
+            <div class="flex justify-between items-center border-b border-gray-600 pb-2">
+                <h2 class="text-lg font-semibold"><i class="fa-solid fa-sliders mr-2"></i> Configuración de I/O</h2>
+                <button id="refreshDevicesBtn" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-sm text-blue-400 border border-gray-500 transition-colors">
+                    <i class="fa-solid fa-rotate-right mr-1"></i> Buscar
+                </button>
+            </div>
             
             <div class="space-y-2">
-                <label class="block text-sm text-gray-400">Entrada de Audio (Micrófono)</label>
+                <label class="block text-sm text-gray-400">Entrada (Micrófono)</label>
                 <div class="relative">
-                    <select id="inputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"></select>
+                    <select id="inputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                        <option value="">-- Haz clic en Buscar primero --</option>
+                    </select>
                 </div>
             </div>
 
             <div class="space-y-2">
-                <label class="block text-sm text-gray-400">Salida de Audio (Altavoz/Auriculares)</label>
+                <label class="block text-sm text-gray-400">Salida (Altavoz/Auriculares)</label>
                 <div class="relative">
-                    <select id="outputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"></select>
+                    <select id="outputDevice" class="w-full bg-gray-800 border border-gray-600 text-white rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                        <option value="">-- Haz clic en Buscar primero --</option>
+                    </select>
                 </div>
-                <p id="outputWarning" class="text-xs text-red-400 hidden">Tu navegador no soporta selección de salida (usará el predeterminado del sistema).</p>
+                <p id="outputWarning" class="text-xs text-red-400 hidden">Tu navegador (ej. iOS/Safari) no soporta elegir salida. Usará el predeterminado.</p>
             </div>
         </section>
 
@@ -112,17 +118,18 @@
         </button>
     </div>
 
-    <!-- Hidden Audio Element for Output Routing -->
     <audio id="outputMonitor" autoplay></audio>
 
     <script>
-        // --- PWA SETUP (Dynamic Manifest & Service Worker) ---
+        // PWA Setup
         const setupPWA = () => {
             const manifest = {
+                id: "walkie-talkie-fx-app",
                 name: "Walkie-Talkie FX Pro",
                 short_name: "WalkieFX",
-                start_url: ".",
+                start_url: window.location.href,
                 display: "standalone",
+                display_override: ["window-controls-overlay", "standalone"],
                 background_color: "#111827",
                 theme_color: "#1f2937",
                 icons: [
@@ -133,52 +140,30 @@
                     }
                 ]
             };
-            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-            const manifestURL = URL.createObjectURL(manifestBlob);
-            const link = document.createElement('link');
-            link.rel = 'manifest';
-            link.href = manifestURL;
-            document.head.appendChild(link);
-
-            const swCode = `
-                self.addEventListener('install', (e) => self.skipWaiting());
-                self.addEventListener('activate', (e) => self.clients.claim());
-                self.addEventListener('fetch', (e) => {
-                    e.respondWith(fetch(e.request).catch(() => new Response('Offline mode not fully supported.')));
-                });
-            `;
-            const swBlob = new Blob([swCode], {type: 'application/javascript'});
-            const swURL = URL.createObjectURL(swBlob);
+            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+            document.head.appendChild(Object.assign(document.createElement('link'), {rel: 'manifest', href: URL.createObjectURL(manifestBlob)}));
 
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register(swURL).catch(err => console.error("SW Register Error:", err));
+                const swCode = `self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => self.clients.claim()); self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));`;
+                navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], {type: 'application/javascript'})));
             }
 
-            // Install Prompt handling
             let deferredPrompt;
             window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
+                e.preventDefault(); deferredPrompt = e;
                 document.getElementById('installBtnContainer').classList.remove('hidden');
             });
-
             document.getElementById('installBtn').addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    if (outcome === 'accepted') {
-                        document.getElementById('installBtnContainer').classList.add('hidden');
-                    }
-                    deferredPrompt = null;
-                }
+                if (deferredPrompt) { deferredPrompt.prompt(); await deferredPrompt.userChoice; document.getElementById('installBtnContainer').classList.add('hidden'); deferredPrompt = null; }
             });
         };
         setupPWA();
 
-        // --- APP LOGIC ---
+        // APP LOGIC
         const inputSelect = document.getElementById('inputDevice');
         const outputSelect = document.getElementById('outputDevice');
         const toggleBtn = document.getElementById('toggleAudioBtn');
+        const refreshBtn = document.getElementById('refreshDevicesBtn');
         const statusText = document.getElementById('statusText');
         const outputMonitor = document.getElementById('outputMonitor');
         const canvas = document.getElementById('visualizer');
@@ -186,31 +171,26 @@
         const effectBtns = document.querySelectorAll('.effect-btn');
         
         let isRunning = false;
-        let audioCtx;
-        let mediaStream;
-        let sourceNode;
-        let currentEffect = 'none';
-        let effectNodes = [];
-        let analyser;
-        let mediaStreamDestination;
-        let animationId;
+        let audioCtx, mediaStream, sourceNode, currentEffect = 'none', effectNodes = [], analyser, mediaStreamDestination, animationId;
 
-        // Check compatibility
+        // Check output support
         if (!HTMLAudioElement.prototype.setSinkId) {
             document.getElementById('outputWarning').classList.remove('hidden');
             outputSelect.disabled = true;
-            outputSelect.innerHTML = '<option>Predeterminado del Sistema</option>';
+            outputSelect.innerHTML = '<option value="">Predeterminado del Sistema</option>';
         }
 
-        // 1. Get Devices
         async function getDevices() {
             try {
-                // Request initial permission to get labels
+                // Forzar la petición de permisos. Vital para mostrar dispositivos.
                 const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 tempStream.getTracks().forEach(t => t.stop());
 
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 
+                const currentInput = inputSelect.value;
+                const currentOutput = outputSelect.value;
+
                 inputSelect.innerHTML = '';
                 if (HTMLAudioElement.prototype.setSinkId) outputSelect.innerHTML = '';
 
@@ -221,7 +201,7 @@
                     option.value = device.deviceId;
                     
                     if (device.kind === 'audioinput') {
-                        option.text = device.label || `Micrófono ${inputSelect.length + 1}`;
+                        option.text = device.label || `Micrófono ${inputSelect.length + 1} (Requiere permiso)`;
                         inputSelect.appendChild(option);
                         hasInput = true;
                     } else if (device.kind === 'audiooutput' && HTMLAudioElement.prototype.setSinkId) {
@@ -230,343 +210,165 @@
                     }
                 });
 
+                if (currentInput) inputSelect.value = currentInput;
+                if (currentOutput) outputSelect.value = currentOutput;
+
                 if (!hasInput) {
-                    alert("No se detectó ningún micrófono.");
+                    inputSelect.innerHTML = '<option value="">Ningún micrófono detectado</option>';
+                } else {
+                    refreshBtn.classList.replace('bg-gray-700', 'bg-green-700');
+                    refreshBtn.classList.replace('text-blue-400', 'text-white');
+                    refreshBtn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Detectados';
+                    setTimeout(() => {
+                        refreshBtn.classList.replace('bg-green-700', 'bg-gray-700');
+                        refreshBtn.classList.replace('text-white', 'text-blue-400');
+                        refreshBtn.innerHTML = '<i class="fa-solid fa-rotate-right mr-1"></i> Buscar';
+                    }, 2000);
                 }
 
             } catch (err) {
                 console.error("Error enumerando dispositivos:", err);
-                alert("Debes dar permiso al micrófono para buscar dispositivos.");
+                if (window.location.protocol === 'file:') {
+                    alert("ERROR: Estás abriendo el archivo localmente (file://). Debes subirlo a GitHub Pages o usar un servidor local (HTTPS) para que funcionen los micrófonos.");
+                } else {
+                    alert("ERROR: Se denegó el permiso del micrófono o no hay dispositivos. Debes permitir el acceso para que la app funcione.");
+                }
             }
         }
 
-        // 2. Audio Processing Graph
-        function makeDistortionCurve(amount) {
-            const k = typeof amount === 'number' ? amount : 50;
-            const n_samples = 44100;
-            const curve = new Float32Array(n_samples);
-            const deg = Math.PI / 180;
-            let x;
-            for (let i = 0; i < n_samples; ++i) {
-                x = i * 2 / n_samples - 1;
-                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+        refreshBtn.addEventListener('click', getDevices);
+        navigator.mediaDevices.addEventListener('devicechange', getDevices);
+
+        outputSelect.addEventListener('change', async () => {
+            if (isRunning && HTMLAudioElement.prototype.setSinkId) {
+                try { await outputMonitor.setSinkId(outputSelect.value); } catch (err) { console.error(err); }
             }
+        });
+
+        function makeDistortionCurve(amount) {
+            const k = typeof amount === 'number' ? amount : 50, n_samples = 44100, curve = new Float32Array(n_samples), deg = Math.PI / 180;
+            for (let i = 0, x; i < n_samples; ++i) { x = i * 2 / n_samples - 1; curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x)); }
             return curve;
         }
 
         function clearEffects() {
-            if (effectNodes.length > 0) {
-                effectNodes.forEach(node => node.disconnect());
-                effectNodes = [];
-            }
-            if (sourceNode) {
-                sourceNode.disconnect();
-            }
+            if (effectNodes.length > 0) { effectNodes.forEach(n => n.disconnect()); effectNodes = []; }
+            if (sourceNode) sourceNode.disconnect();
         }
 
         function applyEffectToGraph() {
             if (!audioCtx || !sourceNode || !mediaStreamDestination) return;
-
             clearEffects();
-
-            // Setup new chain
             let lastNode = sourceNode;
 
             switch (currentEffect) {
                 case 'walkietalkie':
-                    // Radio effect: Bandpass + Distortion + slight noise
-                    const hpFilter = audioCtx.createBiquadFilter();
-                    hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 400;
-
-                    const lpFilter = audioCtx.createBiquadFilter();
-                    lpFilter.type = 'lowpass';
-                    lpFilter.frequency.value = 3000;
-
-                    const distortion = audioCtx.createWaveShaper();
-                    distortion.curve = makeDistortionCurve(40);
-                    distortion.oversample = '4x';
-
-                    lastNode.connect(hpFilter);
-                    hpFilter.connect(lpFilter);
-                    lpFilter.connect(distortion);
-                    lastNode = distortion;
-                    effectNodes.push(hpFilter, lpFilter, distortion);
-                    break;
-
+                    const hpFilter = audioCtx.createBiquadFilter(); hpFilter.type = 'highpass'; hpFilter.frequency.value = 400;
+                    const lpFilter = audioCtx.createBiquadFilter(); lpFilter.type = 'lowpass'; lpFilter.frequency.value = 3000;
+                    const distortion = audioCtx.createWaveShaper(); distortion.curve = makeDistortionCurve(40); distortion.oversample = '4x';
+                    lastNode.connect(hpFilter); hpFilter.connect(lpFilter); lpFilter.connect(distortion); lastNode = distortion;
+                    effectNodes.push(hpFilter, lpFilter, distortion); break;
                 case 'megaphone':
-                    const bandpass = audioCtx.createBiquadFilter();
-                    bandpass.type = 'bandpass';
-                    bandpass.frequency.value = 1000;
-                    bandpass.Q.value = 5;
-
-                    const megaDist = audioCtx.createWaveShaper();
-                    megaDist.curve = makeDistortionCurve(60);
-
-                    const gainNode = audioCtx.createGain();
-                    gainNode.gain.value = 2.0;
-
-                    lastNode.connect(bandpass);
-                    bandpass.connect(megaDist);
-                    megaDist.connect(gainNode);
-                    lastNode = gainNode;
-                    effectNodes.push(bandpass, megaDist, gainNode);
-                    break;
-
+                    const bandpass = audioCtx.createBiquadFilter(); bandpass.type = 'bandpass'; bandpass.frequency.value = 1000; bandpass.Q.value = 5;
+                    const megaDist = audioCtx.createWaveShaper(); megaDist.curve = makeDistortionCurve(60);
+                    const gainNode = audioCtx.createGain(); gainNode.gain.value = 2.0;
+                    lastNode.connect(bandpass); bandpass.connect(megaDist); megaDist.connect(gainNode); lastNode = gainNode;
+                    effectNodes.push(bandpass, megaDist, gainNode); break;
                 case 'telephone':
-                    const telHp = audioCtx.createBiquadFilter();
-                    telHp.type = 'highpass';
-                    telHp.frequency.value = 500;
-                    const telLp = audioCtx.createBiquadFilter();
-                    telLp.type = 'lowpass';
-                    telLp.frequency.value = 2000;
-
-                    lastNode.connect(telHp);
-                    telHp.connect(telLp);
-                    lastNode = telLp;
-                    effectNodes.push(telHp, telLp);
-                    break;
-
+                    const telHp = audioCtx.createBiquadFilter(); telHp.type = 'highpass'; telHp.frequency.value = 500;
+                    const telLp = audioCtx.createBiquadFilter(); telLp.type = 'lowpass'; telLp.frequency.value = 2000;
+                    lastNode.connect(telHp); telHp.connect(telLp); lastNode = telLp; effectNodes.push(telHp, telLp); break;
                 case 'robot':
-                    // Ring Modulation using an Oscillator
-                    const osc = audioCtx.createOscillator();
-                    osc.type = 'sawtooth';
-                    osc.frequency.value = 40; // Low frequency for robotic hum
-
-                    const robotGain = audioCtx.createGain();
-                    robotGain.gain.value = 0; // modulated by osc
-
-                    lastNode.connect(robotGain);
-                    osc.connect(robotGain.gain);
-                    osc.start();
-
-                    // Boost the output a bit
-                    const outGain = audioCtx.createGain();
-                    outGain.gain.value = 1.5;
-                    robotGain.connect(outGain);
-
-                    lastNode = outGain;
-                    effectNodes.push(osc, robotGain, outGain);
-                    break;
-
+                    const osc = audioCtx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 40; 
+                    const robotGain = audioCtx.createGain(); robotGain.gain.value = 0; 
+                    lastNode.connect(robotGain); osc.connect(robotGain.gain); osc.start();
+                    const outGain = audioCtx.createGain(); outGain.gain.value = 1.5; robotGain.connect(outGain);
+                    lastNode = outGain; effectNodes.push(osc, robotGain, outGain); break;
                 case 'alien':
-                    // Fast sine modulation (Tremolo/Ring Mod) + Delay
-                    const alienOsc = audioCtx.createOscillator();
-                    alienOsc.type = 'sine';
-                    alienOsc.frequency.value = 800; 
-
-                    const alienGain = audioCtx.createGain();
-                    lastNode.connect(alienGain);
-                    alienOsc.connect(alienGain.gain);
-                    alienOsc.start();
-
-                    const alienDelay = audioCtx.createDelay();
-                    alienDelay.delayTime.value = 0.05;
-
-                    alienGain.connect(alienDelay);
-                    lastNode = alienDelay;
-                    effectNodes.push(alienOsc, alienGain, alienDelay);
-                    break;
-
+                    const alienOsc = audioCtx.createOscillator(); alienOsc.type = 'sine'; alienOsc.frequency.value = 800; 
+                    const alienGain = audioCtx.createGain(); lastNode.connect(alienGain); alienOsc.connect(alienGain.gain); alienOsc.start();
+                    const alienDelay = audioCtx.createDelay(); alienDelay.delayTime.value = 0.05; alienGain.connect(alienDelay);
+                    lastNode = alienDelay; effectNodes.push(alienOsc, alienGain, alienDelay); break;
                 case 'cave':
-                    // Multiple delays for echo/reverb simulation
-                    const delay1 = audioCtx.createDelay(1.0);
-                    delay1.delayTime.value = 0.3;
-                    const feedback1 = audioCtx.createGain();
-                    feedback1.gain.value = 0.4;
-                    
-                    const caveLp = audioCtx.createBiquadFilter();
-                    caveLp.type = 'lowpass';
-                    caveLp.frequency.value = 1500;
-
+                    const delay1 = audioCtx.createDelay(1.0); delay1.delayTime.value = 0.3;
+                    const feedback1 = audioCtx.createGain(); feedback1.gain.value = 0.4;
+                    const caveLp = audioCtx.createBiquadFilter(); caveLp.type = 'lowpass'; caveLp.frequency.value = 1500;
                     const merger = audioCtx.createGain();
-
-                    lastNode.connect(merger); // dry
-                    lastNode.connect(delay1); // wet path
-                    delay1.connect(feedback1);
-                    feedback1.connect(delay1);
-                    delay1.connect(caveLp);
-                    caveLp.connect(merger);
-
-                    lastNode = merger;
-                    effectNodes.push(delay1, feedback1, caveLp, merger);
-                    break;
-
-                case 'none':
-                default:
-                    // Direct connection, no nodes added
-                    break;
+                    lastNode.connect(merger); lastNode.connect(delay1); delay1.connect(feedback1); feedback1.connect(delay1); delay1.connect(caveLp); caveLp.connect(merger);
+                    lastNode = merger; effectNodes.push(delay1, feedback1, caveLp, merger); break;
             }
-
-            // Always connect to Analyser then Destination
-            lastNode.connect(analyser);
-            analyser.connect(mediaStreamDestination);
+            lastNode.connect(analyser); analyser.connect(mediaStreamDestination);
         }
 
-        // 3. Start/Stop Engine
-        async function toggleAudio() {
-            if (isRunning) {
-                stopAudio();
-            } else {
-                await startAudio();
-            }
-        }
+        async function toggleAudio() { isRunning ? stopAudio() : await startAudio(); }
 
         async function startAudio() {
             try {
-                const inputId = inputSelect.value;
-                const outputId = outputSelect.value;
-
-                // 1. Get Stream
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        deviceId: inputId ? { exact: inputId } : undefined,
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false
-                    }
-                });
-
-                // 2. Setup Audio Context
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                sourceNode = audioCtx.createMediaStreamSource(mediaStream);
-                
-                // Destination specifically for routing to our hidden audio element
-                mediaStreamDestination = audioCtx.createMediaStreamDestination();
-                
-                analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 256;
-
-                // 3. Apply selected effect
-                applyEffectToGraph();
-
-                // 4. Route to output element
-                outputMonitor.srcObject = mediaStreamDestination.stream;
-                
-                if (HTMLAudioElement.prototype.setSinkId && outputId) {
-                    await outputMonitor.setSinkId(outputId);
+                if (!inputSelect.value) {
+                    alert("Primero debes hacer clic en 'Buscar' y dar permisos de micrófono.");
+                    return;
                 }
 
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: inputSelect.value ? { exact: inputSelect.value } : undefined, echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+                mediaStreamDestination = audioCtx.createMediaStreamDestination();
+                analyser = audioCtx.createAnalyser(); analyser.fftSize = 256;
+                applyEffectToGraph();
+                
+                outputMonitor.srcObject = mediaStreamDestination.stream;
+                if (HTMLAudioElement.prototype.setSinkId && outputSelect.value) await outputMonitor.setSinkId(outputSelect.value);
                 await outputMonitor.play();
 
-                // Update UI
                 isRunning = true;
                 toggleBtn.innerHTML = '<i class="fa-solid fa-stop"></i> <span>DETENER TRANSMISIÓN</span>';
-                toggleBtn.classList.replace('bg-blue-600', 'bg-red-600');
-                toggleBtn.classList.replace('hover:bg-blue-500', 'hover:bg-red-500');
-                toggleBtn.classList.replace('shadow-[0_0_15px_rgba(37,99,235,0.5)]', 'shadow-[0_0_15px_rgba(220,38,38,0.5)]');
-                
-                statusText.textContent = "Transmitiendo";
-                statusText.className = "text-green-400 font-bold animate-pulse";
-                
+                toggleBtn.classList.replace('bg-blue-600', 'bg-red-600'); toggleBtn.classList.replace('hover:bg-blue-500', 'hover:bg-red-500'); toggleBtn.classList.replace('shadow-[0_0_15px_rgba(37,99,235,0.5)]', 'shadow-[0_0_15px_rgba(220,38,38,0.5)]');
+                statusText.textContent = "Transmitiendo"; statusText.className = "text-green-400 font-bold animate-pulse";
                 inputSelect.disabled = true;
-                outputSelect.disabled = true;
-
                 drawVisualizer();
-
             } catch (err) {
-                console.error("Error iniciando audio:", err);
-                alert("No se pudo iniciar el audio. Verifica permisos o si otro programa usa el micrófono.");
+                console.error("Error iniciando:", err);
+                alert("Error al iniciar. Asegúrate de haber dado permiso al micrófono.");
             }
         }
 
         function stopAudio() {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-            }
-            if (audioCtx) {
-                audioCtx.close();
-            }
-            
-            outputMonitor.srcObject = null;
-            cancelAnimationFrame(animationId);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            document.getElementById('volumeIndicator').textContent = "Vol: 0%";
-
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            if (audioCtx) audioCtx.close();
+            outputMonitor.srcObject = null; cancelAnimationFrame(animationId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height); document.getElementById('volumeIndicator').textContent = "Vol: 0%";
             isRunning = false;
             toggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> <span>INICIAR TRANSMISIÓN</span>';
-            toggleBtn.classList.replace('bg-red-600', 'bg-blue-600');
-            toggleBtn.classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
-            toggleBtn.classList.replace('shadow-[0_0_15px_rgba(220,38,38,0.5)]', 'shadow-[0_0_15px_rgba(37,99,235,0.5)]');
-            
-            statusText.textContent = "Apagado";
-            statusText.className = "text-red-400 font-bold";
-
+            toggleBtn.classList.replace('bg-red-600', 'bg-blue-600'); toggleBtn.classList.replace('hover:bg-red-500', 'hover:bg-blue-500'); toggleBtn.classList.replace('shadow-[0_0_15px_rgba(220,38,38,0.5)]', 'shadow-[0_0_15px_rgba(37,99,235,0.5)]');
+            statusText.textContent = "Apagado"; statusText.className = "text-red-400 font-bold";
             inputSelect.disabled = false;
-            if (HTMLAudioElement.prototype.setSinkId) outputSelect.disabled = false;
         }
 
-        // 4. Visualizer
         function drawVisualizer() {
             if (!isRunning) return;
-            
             animationId = requestAnimationFrame(drawVisualizer);
-            
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
+            const bufferLength = analyser.frequencyBinCount, dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
-
-            ctx.fillStyle = '#030712';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+            ctx.fillStyle = '#030712'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             const barWidth = (canvas.width / bufferLength) * 2.5;
-            let barHeight;
-            let x = 0;
-            let sum = 0;
-
+            let x = 0, sum = 0;
             for (let i = 0; i < bufferLength; i++) {
-                barHeight = dataArray[i] / 2;
-                sum += dataArray[i];
-
-                // Color gradient based on height
-                const r = barHeight + (25 * (i / bufferLength));
-                const g = 250 * (i / bufferLength);
-                const b = 50;
-
-                ctx.fillStyle = `rgb(${r},${g},${b})`;
-                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-
-                x += barWidth + 1;
+                let barHeight = dataArray[i] / 2; sum += dataArray[i];
+                ctx.fillStyle = `rgb(${barHeight + (25 * (i / bufferLength))},${250 * (i / bufferLength)},50)`;
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight); x += barWidth + 1;
             }
-
-            // Calculate approximate volume %
-            const avg = sum / bufferLength;
-            const volPercent = Math.min(100, Math.round((avg / 128) * 100));
-            document.getElementById('volumeIndicator').textContent = `Vol: ${volPercent}%`;
+            document.getElementById('volumeIndicator').textContent = `Vol: ${Math.min(100, Math.round(((sum / bufferLength) / 128) * 100))}%`;
         }
 
-        // Resize canvas correctly
-        function resizeCanvas() {
-            canvas.width = canvas.parentElement.clientWidth - 32; // padding offset
-            canvas.height = 80;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+        function resizeCanvas() { canvas.width = canvas.parentElement.clientWidth - 32; canvas.height = 80; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
 
-        // 5. Event Listeners
         toggleBtn.addEventListener('click', toggleAudio);
-
-        effectBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Update UI
-                effectBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                // Update effect
-                currentEffect = btn.getAttribute('data-effect');
-                
-                // If running, re-route graph immediately
-                if (isRunning) {
-                    applyEffectToGraph();
-                }
-            });
-        });
-
-        // Init devices on load
-        window.addEventListener('load', getDevices);
-        // Sometimes device labels don't load until permission is granted in some browsers, 
-        // a dedicated button to request permissions might be needed in a production scenario,
-        // but here we request it on `getDevices()` load.
+        effectBtns.forEach(btn => btn.addEventListener('click', () => {
+            effectBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active');
+            currentEffect = btn.getAttribute('data-effect');
+            if (isRunning) applyEffectToGraph();
+        }));
 
     </script>
 </body>
