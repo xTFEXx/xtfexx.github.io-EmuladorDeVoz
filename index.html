@@ -20,20 +20,20 @@
         select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
         #permissionOverlay { position: absolute; inset: 0; background: rgba(17, 24, 39, 0.95); z-index: 50; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; text-align: center; }
         
-        /* Marca de agua solucionada y muy visible */
-        .version-tag { position: fixed; top: 1rem; right: 1rem; background: rgba(0, 0, 0, 0.85); color: #60a5fa; padding: 0.3rem 0.6rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: bold; z-index: 9999; font-family: monospace; border: 1px solid #374151; box-shadow: 0 2px 5px rgba(0,0,0,0.5); pointer-events: none; }
+        /* Marca de agua v0.0.7 - Fija y muy visible */
+        .version-tag { position: fixed; top: 1rem; right: 1rem; background: #2563eb; color: white; padding: 0.4rem 0.8rem; border-radius: 0.5rem; font-size: 0.9rem; font-weight: 900; z-index: 9999; font-family: monospace; border: 2px solid #60a5fa; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden relative">
 
-    <div class="version-tag">v0.0.6</div>
+    <div class="version-tag">v0.0.7</div>
 
     <div id="permissionOverlay">
         <i class="fa-solid fa-unlock-keyhole text-5xl text-blue-500 mb-6"></i>
         <h2 class="text-2xl font-bold mb-4">Acceso Requerido</h2>
-        <p class="text-gray-400 mb-8">Para detectar tus dispositivos de audio, el navegador requiere que autorices el acceso interactuando aquí.</p>
+        <p class="text-gray-400 mb-8">Permite el acceso al hardware para comenzar.</p>
         <button id="requestPermsBtn" class="bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold py-4 px-6 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all">
-            <i class="fa-solid fa-check mr-2"></i> Autorizar y Buscar
+            <i class="fa-solid fa-check mr-2"></i> Autorizar Audio
         </button>
     </div>
 
@@ -43,15 +43,15 @@
         </h1>
         <div id="installBtnContainer" class="hidden">
             <button id="installBtn" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold transition-colors shadow-lg">
-                <i class="fa-solid fa-download mr-1"></i> Instalar
+                <i class="fa-solid fa-download mr-1"></i> Instalar App
             </button>
         </div>
     </header>
 
     <main class="flex-1 overflow-y-auto p-4 space-y-6 pb-24 hidden" id="mainContent">
-        <div class="bg-yellow-900/50 border border-yellow-600 text-yellow-200 p-3 rounded-lg text-sm flex items-start gap-3 shadow-md">
-            <i class="fa-solid fa-triangle-exclamation mt-1"></i>
-            <p><strong>Aviso Bluetooth:</strong> Si tu micrófono Bluetooth no aparece en la lista, selecciona el "Predeterminado". El celular lo usará automáticamente.</p>
+        <div class="bg-blue-900/50 border border-blue-500 text-blue-200 p-3 rounded-lg text-sm flex items-start gap-3 shadow-md">
+            <i class="fa-solid fa-usb mt-1 text-blue-400"></i>
+            <p><strong>Micrófonos USB-C:</strong> El navegador no mostrará su nombre. Simplemente elige "Predeterminado" y dale unos golpecitos a tu micrófono USB-C para ver si el panel de volumen reacciona.</p>
         </div>
 
         <section class="glass-panel p-4 rounded-xl space-y-4">
@@ -106,7 +106,6 @@
     <audio id="outputMonitor" autoplay></audio>
 
     <script>
-        // --- PWA REGISTRATION ---
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js').then(reg => {
                 reg.addEventListener('updatefound', () => {
@@ -137,7 +136,6 @@
             }
         });
 
-        // --- APP LOGIC ---
         const inputSelect = document.getElementById('inputDevice');
         const outputSelect = document.getElementById('outputDevice');
         const toggleBtn = document.getElementById('toggleAudioBtn');
@@ -187,7 +185,7 @@
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     if (device.kind === 'audioinput') {
-                        option.text = device.label || `Micrófono ${micCount++}`;
+                        option.text = device.label || (device.deviceId === 'default' ? 'Predeterminado (Detecta USB)' : `Micrófono ${micCount++}`);
                         inputSelect.appendChild(option);
                     } else if (device.kind === 'audiooutput' && supportsSetSinkId) {
                         option.text = device.label || `Altavoz/Auricular`;
